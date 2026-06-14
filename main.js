@@ -7,8 +7,13 @@ function createWindow() {
 
   const win =
     new BrowserWindow({
-      width: 1200,
-      height: 800,
+
+      width: 1600,
+      height: 1000,
+
+      minWidth: 1200,
+      minHeight: 800,
+
       webPreferences: {
         preload:
           __dirname +
@@ -16,9 +21,13 @@ function createWindow() {
       }
     });
 
+  win.maximize();
+
   win.loadURL(
     "http://localhost:5173"
   );
+
+  win.webContents.openDevTools();
 }
 
 app.whenReady().then(

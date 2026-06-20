@@ -1,14 +1,19 @@
 {
-  "name": "personal-agent-electron",
+  "name": "personal-agent",
   "version": "1.0.0",
   "main": "main.js",
+
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "dist": "electron-builder"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "electron": "^42.4.0"
+
+  "build": {
+    "appId": "com.sushan.personalagent",
+
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility"
+    }
   }
 }

@@ -1,7 +1,25 @@
-const {
-  app,
-  BrowserWindow
-} = require("electron");
+const { app, BrowserWindow } = require("electron");
+const { spawn } = require("child_process");
+const path = require("path");
+
+let backend;
+function startBackend() {
+
+  backend = spawn(
+    "node",
+    ["server.js"],
+    {
+      cwd: "/home/sushan_acharya/Documents/Personal Agent/Agentic-Ai",
+      stdio: "inherit"
+    }
+  );
+
+  backend.on("error", (err) => {
+    console.error("Backend Error:", err);
+  });
+
+  console.log("🚀 Backend started");
+}
 
 function createWindow() {
 
@@ -16,20 +34,26 @@ function createWindow() {
 
       webPreferences: {
         preload:
-          __dirname +
-          "/preload.js"
+          path.join(
+            __dirname,
+            "preload.js"
+          )
       }
     });
 
   win.maximize();
 
-  win.loadURL(
-    "http://localhost:5173"
+  win.loadFile(
+    "/home/sushan_acharya/Documents/Personal Agent/AgenticAI_Frontend/dist/index.html"
   );
-
-  win.webContents.openDevTools();
 }
 
-app.whenReady().then(
-  createWindow
-);
+app.whenReady().then(() => {
+  startBackend();
+  createWindow();
+});
+
+app.on("before-quit", () => {
+  if (backend) backend.kill();
+  if (frontend) frontend.kill();
+});

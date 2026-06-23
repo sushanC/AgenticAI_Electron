@@ -9,16 +9,46 @@ function startBackend() {
     "node",
     ["server.js"],
     {
-      cwd: "/home/sushan_acharya/Documents/Personal Agent/Agentic-Ai",
-      stdio: "inherit"
+      cwd: "/home/sushan_acharya/Documents/Personal Agent/Agentic-Ai"
     }
   );
 
-  backend.on("error", (err) => {
-    console.error("Backend Error:", err);
-  });
+  backend.stdout.on(
+    "data",
+    data => {
+      console.log(
+        `BACKEND: ${data}`
+      );
+    }
+  );
 
-  console.log("🚀 Backend started");
+  backend.stderr.on(
+    "data",
+    data => {
+      console.error(
+        `BACKEND ERROR: ${data}`
+      );
+    }
+  );
+
+  backend.on(
+    "close",
+    code => {
+      console.log(
+        `Backend exited with code ${code}`
+      );
+    }
+  );
+
+  backend.on(
+    "error",
+    err => {
+      console.error(
+        "Backend Error:",
+        err
+      );
+    }
+  );
 }
 
 function createWindow() {
@@ -55,5 +85,4 @@ app.whenReady().then(() => {
 
 app.on("before-quit", () => {
   if (backend) backend.kill();
-  if (frontend) frontend.kill();
 });

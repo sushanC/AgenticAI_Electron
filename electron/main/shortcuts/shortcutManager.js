@@ -59,8 +59,16 @@ function _buildRegistry() {
         console.log('[Desktop] Shortcut: Command Palette triggered');
       },
     },
-    // Phase 2 shortcuts plug in here, e.g.:
-    // { id: 'developer-console', accelerator: 'CmdOrCtrl+Shift+D', handler() { ... } },
+    // Phase 2 shortcuts — Developer Console
+    {
+      id:          'developer-console',
+      accelerator: 'CmdOrCtrl+Shift+D',
+      handler() {
+        const developerManager = require('../developer/developerManager');
+        developerManager.openConsole();
+        console.log('[Desktop] Shortcut: Developer Console triggered');
+      },
+    },
   ];
 }
 

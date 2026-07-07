@@ -32,6 +32,7 @@ const notificationManager  = require('./notifications/notificationManager');
 const dragDropManager      = require('./dragdrop/dragDropManager');
 const commandPaletteManager = require('./commandPalette/commandPaletteManager');
 const desktopEvents        = require('./ipc/desktopEvents');
+const developerManager     = require('../developer/developerManager');
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 
@@ -69,7 +70,11 @@ function init() {
     dragDropManager,
     desktopSettings,
     shortcutManager,
+    developerManager,
   }));
+
+  // 9 ── Developer Console (after IPC is wired)
+  _try('developerManager', () => developerManager.init({ windowManager }));
 
   console.log('[Desktop] All Phase 1 modules initialized');
 }
@@ -77,9 +82,10 @@ function init() {
 // ─── Teardown ─────────────────────────────────────────────────────────────────
 
 function destroy() {
-  _try('shortcutManager.destroy',      () => shortcutManager.destroy());
-  _try('trayManager.destroy',          () => trayManager.destroy());
+  _try('shortcutManager.destroy',       () => shortcutManager.destroy());
+  _try('trayManager.destroy',           () => trayManager.destroy());
   _try('commandPaletteManager.destroy', () => commandPaletteManager.destroy());
+  _try('developerManager.destroy',      () => developerManager.destroy());
   console.log('[Desktop] Desktop layer shut down');
 }
 

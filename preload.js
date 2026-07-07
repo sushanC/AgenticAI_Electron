@@ -3,10 +3,11 @@
 /**
  * preload.js — samGPT contextBridge
  *
- * Exposes TWO top-level APIs to the renderer:
+ * Exposes THREE top-level APIs to the renderer:
  *
  *   window.electronAPI  — backward-compatible (get-user-data-path)
  *   window.desktopAPI   — full Phase 1 desktop feature bridge
+ *   window.devConsoleAPI — Developer Console event bridge (Electron-only)
  *
  * Rules:
  *   • No raw Electron APIs leak into React components
@@ -158,4 +159,43 @@ contextBridge.exposeInMainWorld('desktopAPI', {
 
   /** True in any Electron renderer context */
   isElectron: true,
+});
+
+// ─── Developer Console API ────────────────────────────────────────────────
+
+contextBridge.exposeInMainWorld('devConsoleAPI', {
+
+  /**
+   * Subscribe to incoming DevEvents pushed by the main process.
+   * @param {(event: object) => void} cb
+   * @returns {() => void} unsubscribe
+   */
+  onDevEvent: (cb) => {
+    const handler = (_e, event) => cb(event);
+    ipcRenderer.on('dev:event', handler);
+    return () => ipcRenderer.removeListener('dev:event', handler);
+  },
+
+  /**
+   * Fetch the full ring-buffer history (called when console first opens).
+   * @returns {Promise<object[]>}
+   */
+  getHistory: () => ipcRenderer.invoke('dev:get-history'),
+
+  /**
+   * Clear all developer console history.
+   * @returns {void}
+   */
+  clearHistory: () => ipcRenderer.send('dev:clear'),
+
+  /**
+   * Subscribe to the "open developer console" signal (shortcut / command palette).
+   * @param {() => void} cb
+   * @returns {() => void} unsubscribe
+   */
+  onOpenDeveloperConsole: (cb) => {
+    const handler = () => cb();
+    ipcRenderer.on('desktop:open-developer-console', handler);
+    return () => ipcRenderer.removeListener('desktop:open-developer-console', handler);
+  },
 });

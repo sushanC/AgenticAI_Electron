@@ -113,10 +113,10 @@ function _registerBuiltInCommands() {
       id:          'dev-console',
       label:       'Developer Console',
       icon:        '🛠️',
-      description: 'Open Chromium DevTools (debug)',
+      description: 'Open the samGPT AI observability dashboard',
       handler() {
-        const win = _windowManager.getMainWindow();
-        if (win) win.webContents.openDevTools({ mode: 'detach' });
+        const developerManager = require('../developer/developerManager');
+        developerManager.openConsole();
       },
     },
     {

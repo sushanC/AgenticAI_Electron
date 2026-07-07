@@ -23,11 +23,15 @@
  * │ desktop:quick-ask-resize         │ Renderer → Main   │ Resize Quick Ask to fit content   │
  * │ desktop:window-minimize-to-tray  │ Renderer → Main   │ Programmatic hide to tray         │
  * │ desktop:reload-shortcuts         │ Renderer → Main   │ Re-register after key bind change │
+ * │ dev:get-history                  │ Renderer → Main   │ Fetch buffered developer events   │
+ * │ dev:clear                        │ Renderer → Main   │ Clear developer event ring buffer │
  * │ ─────────────────────────────── │ ───────────────── │ ─────────────────────────────── │
  * │ desktop:new-chat                 │ Main → Renderer   │ Clear the conversation            │
  * │ desktop:navigate                 │ Main → Renderer   │ Switch to a page                  │
  * │ desktop:open-command-palette     │ Main → Renderer   │ Show palette overlay              │
  * │ desktop:focus-chat-input         │ Main → Renderer   │ Focus the message textarea        │
+ * │ desktop:open-developer-console   │ Main → Renderer   │ Open developer console overlay    │
+ * │ dev:event                        │ Main → Renderer   │ Push a DevEvent to the console    │
  * │ quick-ask:focus                  │ Main → Quick Ask  │ Focus input, reset state          │
  * └──────────────────────────────────┴───────────────────┴───────────────────────────────────┘
  */
@@ -55,6 +59,7 @@ function init({
   dragDropManager,
   desktopSettings,
   shortcutManager,
+  developerManager,
 }) {
 
   // ── Existing handler (keep backward compat) ──────────────────────────────
@@ -143,6 +148,21 @@ function init({
   ipcMain.on('desktop:reload-shortcuts', () => {
     shortcutManager.reinit({ windowManager, desktopSettings });
     console.log('[Desktop] Shortcuts reloaded');
+  });
+
+  // ── Developer Console ────────────────────────────────────────────
+  // dev:get-history and dev:clear are registered by developerManager.init().
+  // This ensures they are only active when developerManager is initialized.
+  // We register the relay here because desktopEvents owns all ipcMain calls.
+  ipcMain.handle('dev:get-history', () => {
+    const developerLogger = require('../../developer/developerLogger');
+    return developerLogger.getHistory();
+  });
+
+  ipcMain.on('dev:clear', () => {
+    const developerLogger = require('../../developer/developerLogger');
+    developerLogger.clear();
+    console.log('[Developer] History cleared via IPC');
   });
 
   console.log('[Desktop] IPC handlers registered');

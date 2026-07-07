@@ -20,6 +20,7 @@ const { spawn }    = require('child_process');
 const path         = require('path');
 
 const desktopBootstrap = require('./electron/main/index');
+const devEventBus      = require('./electron/developer/devEventBus');
 
 // ─── Backend Process ──────────────────────────────────────────────────────────
 
@@ -32,6 +33,13 @@ function startBackend() {
 
   backend.stdout.on('data', data => {
     console.log(`BACKEND: ${data.toString().trim()}`);
+  });
+
+  // ── Developer Console: receive structured events from backend process ──
+  backend.on('message', (msg) => {
+    if (msg && msg.type === 'DEV_EVENT' && msg.event) {
+      devEventBus.emit(msg.event.type, msg.event);
+    }
   });
 
   backend.stderr.on('data', data => {

@@ -36,7 +36,8 @@ const developerManager     = require('../developer/developerManager');
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 
-function init() {
+function init(deps = {}) {
+  const { sendToBackend } = deps;
 
   // 1 ── Persistent settings (must be first — others read from it)
   _try('desktopSettings', () => desktopSettings.init());
@@ -71,6 +72,7 @@ function init() {
     desktopSettings,
     shortcutManager,
     developerManager,
+    sendToBackend,
   }));
 
   // 9 ── Developer Console (after IPC is wired)

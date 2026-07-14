@@ -150,6 +150,56 @@ function _registerBuiltInCommands() {
         app.quit();
       },
     },
+    {
+      id:          'start-voice-conv',
+      label:       'Start Voice Conversation',
+      icon:        '🎙️',
+      description: 'Start continuous voice assistant interaction',
+      handler() {
+        const win = _windowManager.getMainWindow();
+        if (win) win.webContents.send('desktop:voice-command', { action: 'start-conversation' });
+      },
+    },
+    {
+      id:          'stop-voice-conv',
+      label:       'Stop Voice Conversation',
+      icon:        '🔇',
+      description: 'Stop active voice mode and speaking queue',
+      handler() {
+        const win = _windowManager.getMainWindow();
+        if (win) win.webContents.send('desktop:voice-command', { action: 'stop-conversation' });
+      },
+    },
+    {
+      id:          'push-to-talk',
+      label:       'Push To Talk',
+      icon:        '🗣️',
+      description: 'Activate voice in Push To Talk mode',
+      handler() {
+        const win = _windowManager.getMainWindow();
+        if (win) win.webContents.send('desktop:voice-command', { action: 'push-to-talk' });
+      },
+    },
+    {
+      id:          'mute-voice',
+      label:       'Mute Voice',
+      icon:        '🔇',
+      description: 'Mute the audio feedback from assistant',
+      handler() {
+        const win = _windowManager.getMainWindow();
+        if (win) win.webContents.send('desktop:voice-command', { action: 'mute' });
+      },
+    },
+    {
+      id:          'unmute-voice',
+      label:       'Unmute Voice',
+      icon:        '🔊',
+      description: 'Unmute the audio feedback from assistant',
+      handler() {
+        const win = _windowManager.getMainWindow();
+        if (win) win.webContents.send('desktop:voice-command', { action: 'unmute' });
+      },
+    },
   ];
 
   for (const cmd of cmds) {

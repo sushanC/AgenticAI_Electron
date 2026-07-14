@@ -29,6 +29,7 @@ let backend = null;
 function startBackend() {
   backend = spawn('node', ['server.js'], {
     cwd: path.resolve(__dirname, '..', 'Agentic-Ai'),
+    stdio: ['pipe', 'pipe', 'pipe', 'ipc'] // Enable IPC channel for process.send
   });
 
   backend.stdout.on('data', data => {
@@ -37,8 +38,17 @@ function startBackend() {
 
   // ── Developer Console: receive structured events from backend process ──
   backend.on('message', (msg) => {
-    if (msg && msg.type === 'DEV_EVENT' && msg.event) {
+    if (!msg) return;
+
+    if (msg.type === 'DEV_EVENT' && msg.event) {
       devEventBus.emit(msg.event.type, msg.event);
+    } else if (msg.type === 'VOICE_STATE_CHANGE') {
+      // Relay voice state changes to the renderer window
+      const { getMainWindow } = require('./electron/main/windows/windowManager');
+      const win = getMainWindow();
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('desktop:voice-state-change', msg.payload);
+      }
     }
   });
 
@@ -58,11 +68,23 @@ function startBackend() {
   console.log('[Backend] Process started');
 }
 
+/**
+ * Send a message to the backend process via Node IPC.
+ * @param {object} msg
+ */
+function sendToBackend(msg) {
+  if (backend && typeof backend.send === 'function') {
+    backend.send(msg);
+  } else {
+    console.warn('[Desktop] Backend IPC channel is not available.');
+  }
+}
+
 // ─── App Lifecycle ────────────────────────────────────────────────────────────
 
 app.whenReady().then(() => {
   startBackend();
-  desktopBootstrap.init();
+  desktopBootstrap.init({ sendToBackend });
 });
 
 // Prevent app from quitting when all windows are closed — tray keeps it alive

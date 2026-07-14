@@ -60,6 +60,7 @@ function init({
   desktopSettings,
   shortcutManager,
   developerManager,
+  sendToBackend,
 }) {
 
   // ── Existing handler (keep backward compat) ──────────────────────────────
@@ -163,6 +164,35 @@ function init({
     const developerLogger = require('../../developer/developerLogger');
     developerLogger.clear();
     console.log('[Developer] History cleared via IPC');
+  });
+
+  // ── Voice control IPCs ───────────────────────────────────────────────────
+  ipcMain.on('desktop:toggle-voice', () => {
+    sendToBackend({ type: 'TOGGLE_VOICE_MODE' });
+  });
+
+  ipcMain.on('desktop:start-listening', () => {
+    sendToBackend({ type: 'START_LISTENING' });
+  });
+
+  ipcMain.on('desktop:cancel-listening', () => {
+    sendToBackend({ type: 'CANCEL_LISTENING' });
+  });
+
+  ipcMain.on('desktop:stop-speaking', () => {
+    sendToBackend({ type: 'STOP_SPEAKING' });
+  });
+
+  ipcMain.on('desktop:pause-speaking', () => {
+    sendToBackend({ type: 'PAUSE_SPEAKING' });
+  });
+
+  ipcMain.on('desktop:resume-speaking', () => {
+    sendToBackend({ type: 'RESUME_SPEAKING' });
+  });
+
+  ipcMain.on('desktop:voice-settings-change', () => {
+    sendToBackend({ type: 'RELOAD_VOICE_SETTINGS' });
   });
 
   console.log('[Desktop] IPC handlers registered');

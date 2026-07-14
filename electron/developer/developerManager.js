@@ -51,6 +51,21 @@ const ALL_EVENT_TYPES = [
   'PDFIndexed',
   'ResearchCompleted',
   'FullRequestSummary',
+  
+  // Voice Events
+  'VoiceStarted',
+  'VoiceStopped',
+  'ListeningStarted',
+  'ListeningFinished',
+  'SpeechRecognized',
+  'SpeechRecognitionFailed',
+  'AIStarted',
+  'AIFinished',
+  'TTSStarted',
+  'TTSFinished',
+  'PlaybackCancelled',
+  'ConversationStarted',
+  'ConversationEnded'
 ];
 
 // ─── Init ─────────────────────────────────────────────────────────────────────

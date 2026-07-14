@@ -69,6 +69,17 @@ function _buildRegistry() {
         console.log('[Desktop] Shortcut: Developer Console triggered');
       },
     },
+    {
+      id:          'toggle-voice',
+      accelerator: 'CmdOrCtrl+Shift+V',
+      handler() {
+        const main = _windowManager.getMainWindow();
+        if (!main) return;
+        _windowManager.showMainWindow();
+        main.webContents.send('desktop:toggle-voice');
+        console.log('[Desktop] Shortcut: Toggle Voice triggered');
+      },
+    },
   ];
 }
 

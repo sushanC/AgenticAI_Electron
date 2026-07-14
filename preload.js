@@ -155,6 +155,62 @@ contextBridge.exposeInMainWorld('desktopAPI', {
     return () => ipcRenderer.removeListener('quick-ask:focus', handler);
   },
 
+  // ── Voice Assistant API ──────────────────────────────────────────────────
+
+  /** Start recording user speech */
+  startListening: () => ipcRenderer.send('desktop:start-listening'),
+
+  /** Cancel active user recording */
+  cancelListening: () => ipcRenderer.send('desktop:cancel-listening'),
+
+  /** Stop speaking queue and current audio playback */
+  stopSpeaking: () => ipcRenderer.send('desktop:stop-speaking'),
+
+  /** Pause active audio playback */
+  pauseSpeaking: () => ipcRenderer.send('desktop:pause-speaking'),
+
+  /** Resume paused audio playback */
+  resumeSpeaking: () => ipcRenderer.send('desktop:resume-speaking'),
+
+  /** Toggle the voice assistant activation state */
+  toggleVoice: () => ipcRenderer.send('desktop:toggle-voice'),
+
+  /** Notify backend that settings were saved */
+  voiceSettingsChanged: () => ipcRenderer.send('desktop:voice-settings-change'),
+
+  /**
+   * Listen for state changes (e.g. listening, processing, speaking, idle)
+   * @param {(payload: { state: string, oldState: string }) => void} cb
+   * @returns {() => void} unsubscribe
+   */
+  onVoiceStateChange: (cb) => {
+    const handler = (_e, payload) => cb(payload);
+    ipcRenderer.on('desktop:voice-state-change', handler);
+    return () => ipcRenderer.removeListener('desktop:voice-state-change', handler);
+  },
+
+  /**
+   * Listen for voice dashboard commands from the main process
+   * @param {(payload: { action: string }) => void} cb
+   * @returns {() => void} unsubscribe
+   */
+  onVoiceCommand: (cb) => {
+    const handler = (_e, payload) => cb(payload);
+    ipcRenderer.on('desktop:voice-command', handler);
+    return () => ipcRenderer.removeListener('desktop:voice-command', handler);
+  },
+
+  /**
+   * Listen for global keyboard shortcut toggle command
+   * @param {() => void} cb
+   * @returns {() => void} unsubscribe
+   */
+  onToggleVoice: (cb) => {
+    const handler = () => cb();
+    ipcRenderer.on('desktop:toggle-voice', handler);
+    return () => ipcRenderer.removeListener('desktop:toggle-voice', handler);
+  },
+
   // ── Utility ───────────────────────────────────────────────────────────────
 
   /** True in any Electron renderer context */

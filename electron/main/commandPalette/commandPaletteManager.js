@@ -200,6 +200,48 @@ function _registerBuiltInCommands() {
         if (win) win.webContents.send('desktop:voice-command', { action: 'unmute' });
       },
     },
+    {
+      id:          'capture-screenshot',
+      label:       'Capture Screen & OCR',
+      icon:        '📸',
+      description: 'Take desktop screenshot for instant AI explanation & OCR',
+      handler() {
+        const screenshotManager = require('../workflows/screenshotManager');
+        screenshotManager.captureScreen().then(res => {
+          const win = _windowManager.getMainWindow();
+          if (win && res.ok) {
+            _windowManager.showMainWindow();
+            win.webContents.send('desktop:screenshot-captured', res);
+          }
+        });
+      },
+    },
+    {
+      id:          'clipboard-actions',
+      label:       'Clipboard Actions',
+      icon:        '📋',
+      description: 'Perform AI actions on copied system clipboard text',
+      handler() {
+        const win = _windowManager.getMainWindow();
+        if (win) {
+          _windowManager.showMainWindow();
+          win.webContents.send('desktop:open-clipboard-actions');
+        }
+      },
+    },
+    {
+      id:          'global-desktop-search',
+      label:       'Global Desktop Search',
+      icon:        '🔍',
+      description: 'Search across chats, notes, tasks, PDFs, memory, and commands',
+      handler() {
+        const win = _windowManager.getMainWindow();
+        if (win) {
+          _windowManager.showMainWindow();
+          win.webContents.send('desktop:open-global-search');
+        }
+      },
+    },
   ];
 
   for (const cmd of cmds) {

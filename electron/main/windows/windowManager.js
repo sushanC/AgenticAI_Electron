@@ -17,7 +17,7 @@
  *   • desktopSettings is required lazily to prevent circular references
  */
 
-const { BrowserWindow, app, screen } = require('electron');
+const { BrowserWindow, app, screen, powerMonitor } = require('electron');
 const path = require('path');
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -37,6 +37,50 @@ let _mainWindow     = null;
 let _quickAskWindow = null;
 let _onCloseToTray  = null;
 
+// ─── Bounds Safety & Persistence Helpers ─────────────────────────────────────
+
+function _ensureBoundsOnScreen(bounds) {
+  if (!bounds || typeof bounds.x !== 'number' || typeof bounds.y !== 'number') {
+    return null;
+  }
+  const displays = screen.getAllDisplays();
+  const onScreen = displays.some((display) => {
+    const { x, y, width, height } = display.bounds;
+    return (
+      bounds.x >= x - 50 &&
+      bounds.x + (bounds.width || 100) <= x + width + 50 &&
+      bounds.y >= y - 50 &&
+      bounds.y + (bounds.height || 100) <= y + height + 50
+    );
+  });
+  return onScreen ? bounds : null;
+}
+
+function _saveWindowBounds() {
+  if (!_mainWindow || _mainWindow.isDestroyed()) return;
+  try {
+    const desktopSettings = require('../store/desktopSettings');
+    const isMax = _mainWindow.isMaximized();
+    const isFS  = _mainWindow.isFullScreen();
+    const bounds = _mainWindow.getBounds();
+    const display = screen.getDisplayMatching(bounds);
+
+    desktopSettings.set({
+      windowBounds: {
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+        isMaximized: isMax,
+        isFullScreen: isFS,
+        monitorId: display ? display.id : null,
+      },
+    });
+  } catch (err) {
+    console.warn('[Desktop] Failed to save window bounds:', err.message);
+  }
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -45,14 +89,44 @@ let _onCloseToTray  = null;
 function init({ onCloseToTray } = {}) {
   _onCloseToTray = onCloseToTray || null;
   _createMainWindow();
+  _setupPowerMonitor();
+}
+
+function _setupPowerMonitor() {
+  try {
+    powerMonitor.on('resume', () => {
+      console.log('[Desktop] System resume detected');
+      if (_mainWindow && !_mainWindow.isDestroyed() && _mainWindow.isVisible()) {
+        if (_mainWindow.isMinimized()) _mainWindow.restore();
+        _mainWindow.show();
+      }
+    });
+    powerMonitor.on('unlock-screen', () => {
+      console.log('[Desktop] Screen unlocked');
+      if (_mainWindow && !_mainWindow.isDestroyed() && _mainWindow.isVisible()) {
+        _mainWindow.show();
+      }
+    });
+  } catch (err) {
+    console.warn('[Desktop] PowerMonitor listener setup non-fatal failure:', err.message);
+  }
 }
 
 // ─── Main Window ──────────────────────────────────────────────────────────────
 
 function _createMainWindow() {
+  const desktopSettings = require('../store/desktopSettings');
+  const savedBounds = desktopSettings.get('windowBounds') || {};
+  const validBounds = _ensureBoundsOnScreen(savedBounds);
+
+  const defaultWidth  = 1600;
+  const defaultHeight = 1000;
+
   _mainWindow = new BrowserWindow({
-    width:          1600,
-    height:         1000,
+    x:              validBounds ? validBounds.x : undefined,
+    y:              validBounds ? validBounds.y : undefined,
+    width:          validBounds ? validBounds.width : defaultWidth,
+    height:         validBounds ? validBounds.height : defaultHeight,
     minWidth:       1200,
     minHeight:      800,
     backgroundColor: '#212121',
@@ -66,18 +140,35 @@ function _createMainWindow() {
   });
 
   _mainWindow.once('ready-to-show', () => {
-    _mainWindow.maximize();
+    if (savedBounds.isFullScreen) {
+      _mainWindow.setFullScreen(true);
+    } else if (savedBounds.isMaximized || validBounds === null) {
+      _mainWindow.maximize();
+    }
     _mainWindow.show();
-    console.log('[Desktop] Main window ready');
+    console.log('[Desktop] Main window ready and restored');
   });
 
   _mainWindow.loadFile(path.join(DIST_PATH, 'index.html'));
+
+  // Track window movements and resizes to save position
+  const debounceSave = () => {
+    if (_mainWindow && !_mainWindow.isDestroyed()) {
+      _saveWindowBounds();
+    }
+  };
+
+  _mainWindow.on('resize', debounceSave);
+  _mainWindow.on('move', debounceSave);
+  _mainWindow.on('maximize', debounceSave);
+  _mainWindow.on('unmaximize', debounceSave);
 
   // Intercept close: hide to tray instead of destroying
   _mainWindow.on('close', (e) => {
     const settings = require('../store/desktopSettings');
     if (!app.isQuitting && settings.get('minimizeToTray')) {
       e.preventDefault();
+      _saveWindowBounds();
       _mainWindow.hide();
       if (_onCloseToTray) _onCloseToTray();
       console.log('[Desktop] Main window hidden to tray');
@@ -88,17 +179,17 @@ function _createMainWindow() {
     _mainWindow = null;
   });
 
-  console.log('[Desktop] Main window created');
+  console.log('[Desktop] Main window created with multi-monitor protection');
 }
 
 // ─── Quick Ask Window ─────────────────────────────────────────────────────────
 
 function _createQuickAskWindow() {
-  const display   = screen.getPrimaryDisplay();
-  const { width } = display.workAreaSize;
+  const display   = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const workArea  = display.workArea;
   const winWidth  = 600;
-  const startX    = Math.round((width - winWidth) / 2);
-  const startY    = Math.round(display.workAreaSize.height * 0.22);
+  const startX    = Math.round(workArea.x + (workArea.width - winWidth) / 2);
+  const startY    = Math.round(workArea.y + workArea.height * 0.22);
 
   _quickAskWindow = new BrowserWindow({
     x:            startX,
@@ -150,23 +241,24 @@ function showMainWindow() {
 }
 
 function hideMainWindow() {
+  _saveWindowBounds();
   _mainWindow?.hide();
 }
 
 function showQuickAsk() {
   if (!_quickAskWindow) _createQuickAskWindow();
 
-  // Re-center horizontally on the active display each time it opens
+  // Always center on the display containing cursor to support multi-monitor setups cleanly
   const display        = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-  const { width }      = display.workAreaSize;
+  const workArea       = display.workArea;
   const winWidth       = 600;
   const currentBounds  = _quickAskWindow.getBounds();
 
   _quickAskWindow.setBounds({
-    x:      Math.round(display.bounds.x + (width - winWidth) / 2),
-    y:      Math.round(display.bounds.y + display.workAreaSize.height * 0.22),
+    x:      Math.round(workArea.x + (workArea.width - winWidth) / 2),
+    y:      Math.round(workArea.y + workArea.height * 0.22),
     width:  winWidth,
-    height: currentBounds.height,
+    height: currentBounds.height || 120,
   });
 
   _quickAskWindow.show();
@@ -174,7 +266,7 @@ function showQuickAsk() {
 
   // Tell renderer to focus the input and reset state
   _quickAskWindow.webContents.send('quick-ask:focus');
-  console.log('[Desktop] Quick Ask window shown');
+  console.log(`[Desktop] Quick Ask window shown on display ${display.id}`);
 }
 
 function hideQuickAsk() {

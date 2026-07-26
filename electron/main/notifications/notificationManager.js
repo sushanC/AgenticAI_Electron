@@ -132,6 +132,30 @@ function showMemorySaved(fact) {
   });
 }
 
+function showVoiceReady() {
+  show({
+    title: 'Voice Assistant Ready 🎙️',
+    body:  'samGPT voice control is ready.',
+    urgency: 'low',
+  });
+}
+
+function showBackgroundJobComplete(jobName) {
+  show({
+    title: 'Background Job Complete ⚙️',
+    body:  jobName ? `Job "${jobName}" completed successfully.` : 'Background service job completed.',
+    urgency: 'low',
+  });
+}
+
+function showUpdatesAvailable(version) {
+  show({
+    title: 'Updates Available 🚀',
+    body:  version ? `samGPT v${version} is available for download.` : 'A new update is available for samGPT.',
+    urgency: 'normal',
+  });
+}
+
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -144,4 +168,7 @@ module.exports = {
   showPDFIndexed,
   showDownloadCompleted,
   showMemorySaved,
+  showVoiceReady,
+  showBackgroundJobComplete,
+  showUpdatesAvailable,
 };

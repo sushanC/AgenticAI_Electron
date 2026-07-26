@@ -65,7 +65,14 @@ const ALL_EVENT_TYPES = [
   'TTSFinished',
   'PlaybackCancelled',
   'ConversationStarted',
-  'ConversationEnded'
+  'ConversationEnded',
+
+  // Desktop & Native Events
+  'BackgroundServiceHealth',
+  'DesktopIPCEvent',
+  'ScreenshotCaptured',
+  'ClipboardEvent',
+  'SessionRestored',
 ];
 
 // ─── Init ─────────────────────────────────────────────────────────────────────

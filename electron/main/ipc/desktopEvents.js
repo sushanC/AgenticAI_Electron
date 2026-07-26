@@ -195,6 +195,52 @@ function init({
     sendToBackend({ type: 'RELOAD_VOICE_SETTINGS' });
   });
 
+  // ── Desktop Screenshot & OCR Workflow ────────────────────────────────────
+  ipcMain.handle('desktop:capture-screenshot', async (_e, opts) => {
+    const screenshotManager = require('../workflows/screenshotManager');
+    return await screenshotManager.captureScreen(opts);
+  });
+
+  // ── Background Clipboard Intelligence ────────────────────────────────────
+  ipcMain.handle('desktop:get-clipboard-history', () => {
+    const clipboardMonitor = require('../services/clipboardMonitorService');
+    return clipboardMonitor.getHistory();
+  });
+
+  ipcMain.on('desktop:clear-clipboard-history', () => {
+    const clipboardMonitor = require('../services/clipboardMonitorService');
+    clipboardMonitor.clearHistory();
+  });
+
+  // ── Unified Desktop Search ────────────────────────────────────────────────
+  ipcMain.handle('desktop:global-search', (_e, { query }) => {
+    const searchManager = require('../search/searchManager');
+    return searchManager.search(query);
+  });
+
+  // ── Background Services Health ───────────────────────────────────────────
+  ipcMain.handle('desktop:get-background-health', () => {
+    const backgroundServicesManager = require('../services/backgroundServicesManager');
+    return backgroundServicesManager.getHealthReport();
+  });
+
+  // ── Session Management ───────────────────────────────────────────────────
+  ipcMain.handle('desktop:get-session', () => {
+    const sessionManager = require('../session/sessionManager');
+    return sessionManager.getSession();
+  });
+
+  ipcMain.on('desktop:save-session', (_e, updates) => {
+    const sessionManager = require('../session/sessionManager');
+    sessionManager.updateSession(updates);
+  });
+
+  // ── Task Reminders ───────────────────────────────────────────────────────
+  ipcMain.on('desktop:schedule-reminder', (_e, { text, dueTime }) => {
+    const reminderScheduler = require('../services/reminderSchedulerService');
+    reminderScheduler.scheduleReminder(text, dueTime);
+  });
+
   console.log('[Desktop] IPC handlers registered');
 }
 

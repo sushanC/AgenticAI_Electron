@@ -59,7 +59,6 @@ function _buildRegistry() {
         console.log('[Desktop] Shortcut: Command Palette triggered');
       },
     },
-    // Phase 2 shortcuts — Developer Console
     {
       id:          'developer-console',
       accelerator: 'CmdOrCtrl+Shift+D',
@@ -78,6 +77,43 @@ function _buildRegistry() {
         _windowManager.showMainWindow();
         main.webContents.send('desktop:toggle-voice');
         console.log('[Desktop] Shortcut: Toggle Voice triggered');
+      },
+    },
+    {
+      id:          'clipboard-actions',
+      accelerator: _desktopSettings?.get('shortcutClipboard') || 'CmdOrCtrl+Shift+C',
+      handler() {
+        const main = _windowManager.getMainWindow();
+        if (!main) return;
+        _windowManager.showMainWindow();
+        main.webContents.send('desktop:open-clipboard-actions');
+        console.log('[Desktop] Shortcut: Clipboard Actions triggered');
+      },
+    },
+    {
+      id:          'screenshot-capture',
+      accelerator: _desktopSettings?.get('shortcutScreenshot') || 'CmdOrCtrl+Shift+S',
+      handler() {
+        const screenshotManager = require('../workflows/screenshotManager');
+        screenshotManager.captureScreen().then(res => {
+          const main = _windowManager.getMainWindow();
+          if (main && res.ok) {
+            _windowManager.showMainWindow();
+            main.webContents.send('desktop:screenshot-captured', res);
+          }
+        });
+        console.log('[Desktop] Shortcut: Screenshot Capture triggered');
+      },
+    },
+    {
+      id:          'global-search',
+      accelerator: _desktopSettings?.get('shortcutSearch') || 'CmdOrCtrl+Shift+F',
+      handler() {
+        const main = _windowManager.getMainWindow();
+        if (!main) return;
+        _windowManager.showMainWindow();
+        main.webContents.send('desktop:open-global-search');
+        console.log('[Desktop] Shortcut: Global Search triggered');
       },
     },
   ];

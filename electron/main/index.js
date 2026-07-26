@@ -33,6 +33,10 @@ const dragDropManager      = require('./dragdrop/dragDropManager');
 const commandPaletteManager = require('./commandPalette/commandPaletteManager');
 const desktopEvents        = require('./ipc/desktopEvents');
 const developerManager     = require('../developer/developerManager');
+const backgroundServicesManager = require('./services/backgroundServicesManager');
+const startupManager       = require('./startup/startupManager');
+const fileAssociationManager = require('./files/fileAssociationManager');
+const pluginManager        = require('./plugins/pluginManager');
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 
@@ -59,10 +63,19 @@ function init(deps = {}) {
   // 6 ── Drag & Drop (needs mainWindow to exist)
   _try('dragDropManager', () => dragDropManager.init({ windowManager, desktopSettings }));
 
-  // 7 ── Command Palette registry
+  // 7 ── File Associations & OS Open Events
+  _try('fileAssociationManager', () => fileAssociationManager.init({ windowManager }));
+
+  // 8 ── Plugin Architecture Hooks
+  _try('pluginManager', () => pluginManager.init());
+
+  // 9 ── Background Services Layer
+  _try('backgroundServicesManager', () => backgroundServicesManager.init({ windowManager, trayManager, notificationManager }));
+
+  // 10 ── Command Palette registry
   _try('commandPaletteManager', () => commandPaletteManager.init({ windowManager }));
 
-  // 8 ── IPC — must be last (all managers must be ready to receive calls)
+  // 11 ── IPC — must be before developer & startup (all managers must be ready to receive calls)
   _try('desktopEvents', () => desktopEvents.init({
     windowManager,
     trayManager,
@@ -72,18 +85,23 @@ function init(deps = {}) {
     desktopSettings,
     shortcutManager,
     developerManager,
+    backgroundServicesManager,
     sendToBackend,
   }));
 
-  // 9 ── Developer Console (after IPC is wired)
+  // 12 ── Developer Console (after IPC is wired)
   _try('developerManager', () => developerManager.init({ windowManager }));
 
-  console.log('[Desktop] All Phase 1 modules initialized');
+  // 13 ── Smooth Desktop Startup Flow
+  _try('startupManager', () => startupManager.runStartupSequence({ windowManager, trayManager, sendToBackend }));
+
+  console.log('[Desktop] All samGPT Premium Native Desktop modules initialized');
 }
 
 // ─── Teardown ─────────────────────────────────────────────────────────────────
 
 function destroy() {
+  _try('backgroundServicesManager.destroy', () => backgroundServicesManager.destroy());
   _try('shortcutManager.destroy',       () => shortcutManager.destroy());
   _try('trayManager.destroy',           () => trayManager.destroy());
   _try('commandPaletteManager.destroy', () => commandPaletteManager.destroy());

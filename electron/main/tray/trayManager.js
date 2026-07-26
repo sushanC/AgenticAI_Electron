@@ -53,6 +53,12 @@ function _buildIcon() {
 let _tray          = null;
 let _windowManager = null;
 
+let _aiStatus     = '● Online';
+let _voiceStatus  = '🎙️ Standby';
+let _currentModel = '⚡ Gemini 3.6 Flash';
+let _workspace    = 'Default Workspace';
+
+let _recentChats  = [];  // [{ label: string, id: string }]
 let _recentPDFs   = [];  // [{ label: string, path: string }]
 let _recentTasks  = [];  // [{ label: string }]
 
@@ -68,7 +74,7 @@ function init({ windowManager }) {
     const icon = _buildIcon();
     _tray      = new Tray(icon);
 
-    _tray.setToolTip('samGPT — AI Assistant');
+    _tray.setToolTip('samGPT — Native AI Operating Companion');
     _rebuildMenu();
 
     // Single-click on Linux/Windows should restore the window
@@ -77,7 +83,7 @@ function init({ windowManager }) {
     // Double-click is the standard gesture on macOS and some Linux DEs
     _tray.on('double-click', () => _windowManager.showMainWindow());
 
-    console.log('[Desktop] Tray initialized');
+    console.log('[Desktop] Tray AI Control Center initialized');
   } catch (err) {
     console.warn('[Desktop] Tray initialization failed (app continues):', err.message);
   }
@@ -87,6 +93,17 @@ function init({ windowManager }) {
 
 function _rebuildMenu() {
   if (!_tray) return;
+
+  const chatSubmenu = _recentChats.length > 0
+    ? _recentChats.map(item => ({
+        label: item.label,
+        click: () => {
+          _windowManager.showMainWindow();
+          const win = _windowManager.getMainWindow();
+          if (win) win.webContents.send('desktop:navigate', { page: 'chat', chatId: item.id });
+        },
+      }))
+    : [{ label: 'No recent chats', enabled: false }];
 
   const pdfSubmenu = _recentPDFs.length > 0
     ? _recentPDFs.map(item => ({
@@ -111,15 +128,31 @@ function _rebuildMenu() {
     : [{ label: 'No recent tasks', enabled: false }];
 
   const menu = Menu.buildFromTemplate([
-    // ── Header ──────────────────────────────────────────────────────────
-    { label: 'samGPT', enabled: false },
-    { label: '● Online', enabled: false },
+    // ── Header & Live Status ──────────────────────────────────────────────
+    { label: 'samGPT Native AI Companion', enabled: false },
+    { label: `AI Engine: ${_aiStatus}`, enabled: false },
+    { label: `Voice Assistant: ${_voiceStatus}`, enabled: false },
+    { label: `Active Model: ${_currentModel}`, enabled: false },
+    { label: `Workspace: ${_workspace}`, enabled: false },
     { type: 'separator' },
 
-    // ── Primary actions ──────────────────────────────────────────────────
+    // ── Primary Desktop Workflows ─────────────────────────────────────────
     {
-      label: 'Open samGPT',
+      label: 'Open samGPT Desktop',
       click: () => _windowManager.showMainWindow(),
+    },
+    {
+      label:       'Quick Ask',
+      accelerator: 'CmdOrCtrl+Space',
+      click: () => _windowManager.showQuickAsk(),
+    },
+    {
+      label:       'Command Palette',
+      accelerator: 'CmdOrCtrl+K',
+      click: () => {
+        const commandPaletteManager = require('../commandPalette/commandPaletteManager');
+        commandPaletteManager.openPalette();
+      },
     },
     {
       label: 'New Chat',
@@ -129,19 +162,31 @@ function _rebuildMenu() {
         if (win) win.webContents.send('desktop:new-chat');
       },
     },
-    {
-      label:       'Quick Ask',
-      accelerator: 'CmdOrCtrl+Space',
-      click: () => _windowManager.showQuickAsk(),
-    },
     { type: 'separator' },
 
-    // ── Recent items (dynamic) ───────────────────────────────────────────
+    // ── Recent Context Submenus ───────────────────────────────────────────
+    { label: 'Recent Chats', submenu: chatSubmenu },
     { label: 'Recent PDFs',  submenu: pdfSubmenu  },
     { label: 'Recent Tasks', submenu: taskSubmenu },
     { type: 'separator' },
 
-    // ── Navigation ───────────────────────────────────────────────────────
+    // ── Intelligence & Developer Tools ────────────────────────────────────
+    {
+      label: 'Memory & Facts',
+      click: () => {
+        _windowManager.showMainWindow();
+        const win = _windowManager.getMainWindow();
+        if (win) win.webContents.send('desktop:navigate', { page: 'memory' });
+      },
+    },
+    {
+      label:       'Developer Console',
+      accelerator: 'CmdOrCtrl+Shift+D',
+      click: () => {
+        const developerManager = require('../../developer/developerManager');
+        developerManager.openConsole();
+      },
+    },
     {
       label: 'Settings',
       click: () => {
@@ -167,9 +212,33 @@ function _rebuildMenu() {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
+function updateAIStatus(status) {
+  _aiStatus = status || '● Online';
+  _rebuildMenu();
+}
+
+function updateVoiceStatus(status) {
+  _voiceStatus = status || '🎙️ Standby';
+  _rebuildMenu();
+}
+
+function updateModel(modelName) {
+  _currentModel = modelName || '⚡ Gemini 3.6 Flash';
+  _rebuildMenu();
+}
+
+function updateWorkspace(workspaceName) {
+  _workspace = workspaceName || 'Default Workspace';
+  _rebuildMenu();
+}
+
+function updateRecentChats(items) {
+  _recentChats = Array.isArray(items) ? items.slice(0, 5) : [];
+  _rebuildMenu();
+}
+
 /**
  * Update the Recent PDFs submenu.
- * Called by backend sync in Phase 2.
  * @param {{ label: string, path: string }[]} items
  */
 function updateRecentPDFs(items) {
@@ -198,6 +267,11 @@ function destroy() {
 
 module.exports = {
   init,
+  updateAIStatus,
+  updateVoiceStatus,
+  updateModel,
+  updateWorkspace,
+  updateRecentChats,
   updateRecentPDFs,
   updateRecentTasks,
   destroy,

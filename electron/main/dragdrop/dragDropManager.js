@@ -88,7 +88,20 @@ function _configureMainWindow() {
  * @returns {{ path: string, name: string, ext: string, size: number }[]}
  */
 function filterDroppedFiles(files) {
-  return files.filter(f => ACCEPTED_EXTENSIONS.has(f.ext.toLowerCase()));
+  const filtered = files.filter(f => ACCEPTED_EXTENSIONS.has(f.ext.toLowerCase()));
+  
+  // Track PDF drops into background PDF Indexer service
+  const pdfs = filtered.filter(f => f.ext.toLowerCase() === 'pdf');
+  if (pdfs.length > 0) {
+    try {
+      const pdfIndexer = require('../services/pdfIndexerService');
+      pdfs.forEach(p => pdfIndexer.queuePDF({ name: p.name, path: p.path }));
+    } catch (err) {
+      console.warn('[DragDrop] PDF Indexer notification non-fatal failure:', err.message);
+    }
+  }
+
+  return filtered;
 }
 
 /**

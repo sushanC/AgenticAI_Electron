@@ -3,11 +3,10 @@
 /**
  * preload.js — samGPT contextBridge
  *
- * Exposes THREE top-level APIs to the renderer:
+ * Exposes TWO top-level APIs to the renderer:
  *
  *   window.electronAPI  — backward-compatible (get-user-data-path)
- *   window.desktopAPI   — full Phase 1 desktop feature bridge
- *   window.devConsoleAPI — Developer Console event bridge (Electron-only)
+ *   window.desktopAPI   — unified desktop + dev-console bridge
  *
  * Rules:
  *   • No raw Electron APIs leak into React components
@@ -18,15 +17,20 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
-// ─── Backward-compat API (existing) ──────────────────────────────────────────
+// ─── Backward-compat API ──────────────────────────────────────────────────────
 
 contextBridge.exposeInMainWorld('electronAPI', {
   getUserDataPath: () => ipcRenderer.invoke('get-user-data-path'),
 });
 
-// ─── Desktop API ──────────────────────────────────────────────────────────────
+// ─── Unified Desktop API ──────────────────────────────────────────────────────
 
 contextBridge.exposeInMainWorld('desktopAPI', {
+
+  // ── Metadata ──────────────────────────────────────────────────────────────
+
+  /** True in any Electron renderer context */
+  isElectron: true,
 
   // ── Settings ─────────────────────────────────────────────────────────────
 
@@ -87,7 +91,44 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   /** Minimize the main window to tray programmatically */
   minimizeToTray: () => ipcRenderer.send('desktop:window-minimize-to-tray'),
 
+  // ── Voice Assistant ───────────────────────────────────────────────────────
+
+  /** Start recording user speech */
+  startListening: () => ipcRenderer.send('desktop:start-listening'),
+
+  /** Cancel active user recording */
+  cancelListening: () => ipcRenderer.send('desktop:cancel-listening'),
+
+  /** Stop speaking queue and current audio playback */
+  stopSpeaking: () => ipcRenderer.send('desktop:stop-speaking'),
+
+  /** Pause active audio playback */
+  pauseSpeaking: () => ipcRenderer.send('desktop:pause-speaking'),
+
+  /** Resume paused audio playback */
+  resumeSpeaking: () => ipcRenderer.send('desktop:resume-speaking'),
+
+  /** Toggle the voice assistant activation state */
+  toggleVoice: () => ipcRenderer.send('desktop:toggle-voice'),
+
+  /** Notify backend that settings were saved */
+  voiceSettingsChanged: () => ipcRenderer.send('desktop:voice-settings-change'),
+
+  // ── Developer Console ─────────────────────────────────────────────────────
+
+  /**
+   * Fetch the full ring-buffer history (called when console first opens).
+   * @returns {Promise<object[]>}
+   */
+  getHistory: () => ipcRenderer.invoke('dev:get-history'),
+
+  /**
+   * Clear all developer console history.
+   */
+  clearHistory: () => ipcRenderer.send('dev:clear'),
+
   // ── Event subscriptions (Main → Renderer) ─────────────────────────────────
+  // Every on*() method returns an unsubscribe function: () => void
 
   /**
    * Fires when main process wants to start a new chat.
@@ -134,6 +175,39 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   },
 
   /**
+   * Fires when main wants to open the Voice overlay.
+   * @param {() => void} cb
+   * @returns {() => void} unsubscribe
+   */
+  onOpenVoiceOverlay: (cb) => {
+    const handler = () => cb();
+    ipcRenderer.on('desktop:open-voice-overlay', handler);
+    return () => ipcRenderer.removeListener('desktop:open-voice-overlay', handler);
+  },
+
+  /**
+   * Quick Ask window: fires when a text payload should be sent to main chat.
+   * @param {(text: string) => void} cb
+   * @returns {() => void} unsubscribe
+   */
+  onOpenQuickAsk: (cb) => {
+    const handler = (_e, text) => cb(text);
+    ipcRenderer.on('desktop:open-quick-ask', handler);
+    return () => ipcRenderer.removeListener('desktop:open-quick-ask', handler);
+  },
+
+  /**
+   * Fires when a quick-action shortcut is invoked (tray menu / shortcut).
+   * @param {(actionId: string) => void} cb
+   * @returns {() => void} unsubscribe
+   */
+  onQuickAction: (cb) => {
+    const handler = (_e, actionId) => cb(actionId);
+    ipcRenderer.on('desktop:quick-action', handler);
+    return () => ipcRenderer.removeListener('desktop:quick-action', handler);
+  },
+
+  /**
    * Fires after drag-drop files have been filtered by main process.
    * @param {(files: object[]) => void} cb
    * @returns {() => void} unsubscribe
@@ -155,32 +229,9 @@ contextBridge.exposeInMainWorld('desktopAPI', {
     return () => ipcRenderer.removeListener('quick-ask:focus', handler);
   },
 
-  // ── Voice Assistant API ──────────────────────────────────────────────────
-
-  /** Start recording user speech */
-  startListening: () => ipcRenderer.send('desktop:start-listening'),
-
-  /** Cancel active user recording */
-  cancelListening: () => ipcRenderer.send('desktop:cancel-listening'),
-
-  /** Stop speaking queue and current audio playback */
-  stopSpeaking: () => ipcRenderer.send('desktop:stop-speaking'),
-
-  /** Pause active audio playback */
-  pauseSpeaking: () => ipcRenderer.send('desktop:pause-speaking'),
-
-  /** Resume paused audio playback */
-  resumeSpeaking: () => ipcRenderer.send('desktop:resume-speaking'),
-
-  /** Toggle the voice assistant activation state */
-  toggleVoice: () => ipcRenderer.send('desktop:toggle-voice'),
-
-  /** Notify backend that settings were saved */
-  voiceSettingsChanged: () => ipcRenderer.send('desktop:voice-settings-change'),
-
   /**
    * Listen for state changes (e.g. listening, processing, speaking, idle)
-   * @param {(payload: { state: string, oldState: string }) => void} cb
+   * @param {(payload: { state: string, text?: string, reply?: string, error?: string }) => void} cb
    * @returns {() => void} unsubscribe
    */
   onVoiceStateChange: (cb) => {
@@ -211,15 +262,16 @@ contextBridge.exposeInMainWorld('desktopAPI', {
     return () => ipcRenderer.removeListener('desktop:toggle-voice', handler);
   },
 
-  // ── Utility ───────────────────────────────────────────────────────────────
-
-  /** True in any Electron renderer context */
-  isElectron: true,
-});
-
-// ─── Developer Console API ────────────────────────────────────────────────
-
-contextBridge.exposeInMainWorld('devConsoleAPI', {
+  /**
+   * Fires when the developer console should be opened or toggled.
+   * @param {() => void} cb
+   * @returns {() => void} unsubscribe
+   */
+  onOpenDeveloperConsole: (cb) => {
+    const handler = () => cb();
+    ipcRenderer.on('desktop:open-developer-console', handler);
+    return () => ipcRenderer.removeListener('desktop:open-developer-console', handler);
+  },
 
   /**
    * Subscribe to incoming DevEvents pushed by the main process.
@@ -232,26 +284,70 @@ contextBridge.exposeInMainWorld('devConsoleAPI', {
     return () => ipcRenderer.removeListener('dev:event', handler);
   },
 
-  /**
-   * Fetch the full ring-buffer history (called when console first opens).
-   * @returns {Promise<object[]>}
-   */
-  getHistory: () => ipcRenderer.invoke('dev:get-history'),
+  // ── Desktop Screenshot & OCR Workflow ────────────────────────────────────
 
-  /**
-   * Clear all developer console history.
-   * @returns {void}
-   */
-  clearHistory: () => ipcRenderer.send('dev:clear'),
+  /** Capture desktop screen / window / region for OCR & AI analysis */
+  captureScreenshot: (opts) => ipcRenderer.invoke('desktop:capture-screenshot', opts),
 
-  /**
-   * Subscribe to the "open developer console" signal (shortcut / command palette).
-   * @param {() => void} cb
-   * @returns {() => void} unsubscribe
-   */
-  onOpenDeveloperConsole: (cb) => {
+  /** Fires when a screenshot is captured via hotkey */
+  onScreenshotCaptured: (cb) => {
+    const handler = (_e, res) => cb(res);
+    ipcRenderer.on('desktop:screenshot-captured', handler);
+    return () => ipcRenderer.removeListener('desktop:screenshot-captured', handler);
+  },
+
+  // ── Background Clipboard Intelligence ────────────────────────────────────
+
+  /** Fetch clipboard history buffer */
+  getClipboardHistory: () => ipcRenderer.invoke('desktop:get-clipboard-history'),
+
+  /** Clear clipboard history buffer */
+  clearClipboardHistory: () => ipcRenderer.send('desktop:clear-clipboard-history'),
+
+  /** Fires when system clipboard content changes */
+  onClipboardChanged: (cb) => {
+    const handler = (_e, data) => cb(data);
+    ipcRenderer.on('desktop:clipboard-changed', handler);
+    return () => ipcRenderer.removeListener('desktop:clipboard-changed', handler);
+  },
+
+  /** Fires when Clipboard Actions overlay is triggered by shortcut */
+  onOpenClipboardActions: (cb) => {
     const handler = () => cb();
-    ipcRenderer.on('desktop:open-developer-console', handler);
-    return () => ipcRenderer.removeListener('desktop:open-developer-console', handler);
+    ipcRenderer.on('desktop:open-clipboard-actions', handler);
+    return () => ipcRenderer.removeListener('desktop:open-clipboard-actions', handler);
+  },
+
+  // ── Unified Desktop Search ────────────────────────────────────────────────
+
+  /** Search across chats, notes, tasks, PDFs, memory, and commands */
+  globalSearch: (query) => ipcRenderer.invoke('desktop:global-search', { query }),
+
+  /** Fires when Global Search overlay is triggered by shortcut */
+  onOpenGlobalSearch: (cb) => {
+    const handler = () => cb();
+    ipcRenderer.on('desktop:open-global-search', handler);
+    return () => ipcRenderer.removeListener('desktop:open-global-search', handler);
+  },
+
+  // ── Background Services & Session ────────────────────────────────────────
+
+  /** Fetch background services health status */
+  getBackgroundHealth: () => ipcRenderer.invoke('desktop:get-background-health'),
+
+  /** Fetch active desktop session state */
+  getSession: () => ipcRenderer.invoke('desktop:get-session'),
+
+  /** Save desktop session updates */
+  saveSession: (updates) => ipcRenderer.send('desktop:save-session', updates),
+
+  /** Schedule a background task reminder */
+  scheduleReminder: (text, dueTime) => ipcRenderer.send('desktop:schedule-reminder', { text, dueTime }),
+
+  /** Fires when a document file is opened from the OS */
+  onFileOpenedFromOS: (cb) => {
+    const handler = (_e, fileInfo) => cb(fileInfo);
+    ipcRenderer.on('desktop:file-opened-from-os', handler);
+    return () => ipcRenderer.removeListener('desktop:file-opened-from-os', handler);
   },
 });

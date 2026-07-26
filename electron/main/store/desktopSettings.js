@@ -40,6 +40,38 @@ const DEFAULTS = {
 
   /** Accelerator string for the Command Palette overlay */
   shortcutCommandPalette: 'CmdOrCtrl+K',
+
+  /** Window state & position persistence */
+  windowBounds: {
+    width: 1600,
+    height: 1000,
+    x: null,
+    y: null,
+    isMaximized: true,
+    isFullScreen: false,
+    monitorId: null,
+  },
+
+  /** Session restoration state */
+  sessionState: {
+    lastPage: 'dashboard',
+    activeWorkspaceId: null,
+    sidebarCollapsed: false,
+    activeChatId: null,
+    voiceMode: 'idle',
+  },
+
+  /** Background Clipboard Intelligence */
+  enableClipboardMonitoring: false,
+  clipboardHistoryLimit: 20,
+
+  /** Expanded Global Shortcut Hotkeys */
+  shortcutClipboard: 'CmdOrCtrl+Shift+C',
+  shortcutScreenshot: 'CmdOrCtrl+Shift+S',
+  shortcutSearch: 'CmdOrCtrl+Shift+F',
+
+  /** Screenshot preferences */
+  saveScreenshotsLocally: true,
 };
 
 // ─── State ───────────────────────────────────────────────────────────────────

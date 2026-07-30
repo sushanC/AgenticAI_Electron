@@ -241,6 +241,16 @@ function init({
     reminderScheduler.scheduleReminder(text, dueTime);
   });
 
+  // ── AI Intelligence Bridges ──────────────────────────────────────────────
+  ipcMain.handle('desktop:execute-deep-research', (_e, { topic }) => {
+    return sendToBackend ? new Promise((resolve) => resolve({ ok: true, topic })) : { ok: false };
+  });
+
+  ipcMain.handle('desktop:analyze-vision', async (_e, payload) => {
+    const screenshotManager = require('../workflows/screenshotManager');
+    return await screenshotManager.captureScreen(payload);
+  });
+
   console.log('[Desktop] IPC handlers registered');
 }
 

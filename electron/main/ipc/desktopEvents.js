@@ -191,6 +191,14 @@ function init({
     sendToBackend({ type: 'RESUME_SPEAKING' });
   });
 
+  ipcMain.on('desktop:repeat-last-response', () => {
+    sendToBackend({ type: 'REPEAT_LAST_RESPONSE' });
+  });
+
+  ipcMain.on('desktop:set-microphone-muted', (_event, { muted }) => {
+    sendToBackend({ type: 'SET_MICROPHONE_MUTED', muted: Boolean(muted) });
+  });
+
   ipcMain.on('desktop:voice-settings-change', () => {
     sendToBackend({ type: 'RELOAD_VOICE_SETTINGS' });
   });

@@ -114,6 +114,12 @@ contextBridge.exposeInMainWorld('desktopAPI', {
   /** Resume paused audio playback */
   resumeSpeaking: () => ipcRenderer.send('desktop:resume-speaking'),
 
+  /** Repeat the last generated assistant response */
+  repeatLastResponse: () => ipcRenderer.send('desktop:repeat-last-response'),
+
+  /** Suppress microphone samples until explicitly unmuted */
+  setMicrophoneMuted: (muted) => ipcRenderer.send('desktop:set-microphone-muted', { muted: Boolean(muted) }),
+
   /** Toggle the voice assistant activation state */
   toggleVoice: () => ipcRenderer.send('desktop:toggle-voice'),
 
